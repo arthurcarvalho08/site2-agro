@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroManager - Sistema de Gestão Agrícola</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+        <h1>🌾 AgroManager - Painel de Monitoramento</h1>
+        <div id="status-conexao" class="status-servidor">Verificando servidor Java...</div>
+        
+        <!-- Novo Botão Animado -->
+        <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox-tema" title="Alternar Tema">
+                <input type="checkbox" id="checkbox-tema" onchange="alternarTema()" />
+                <div class="slider"></div>
+            </label>
+        </div>
+    </header>
+
+    <div class="container">
+        <aside>
+            <section class="card">
+                <h2>Cadastrar Maquinário</h2>
+                <form id="form-maquinario">
+                    <div class="form-group">
+                        <label for="modelo">Modelo do Maquinário</label>
+                        <input type="text" id="modelo" placeholder="Ex: John Deere 6135M" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipo">Tipo de Maquinário</label>
+                        <select id="tipo" required>
+                            <option value="">Selecione...</option>
+                            <option value="Trator">Trator</option>
+                            <option value="Colheitadeira">Colheitadeira</option>
+                            <option value="Pulverizador">Pulverizador</option>
+                            <option value="Semeadora">Semeadora</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="horasUso">Horas de Uso acumuladas</label>
+                        <input type="number" id="horasUso" placeholder="Ex: 1200" min="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proximaManutencao">Data da Próxima Manutenção</label>
+                        <input type="date" id="proximaManutencao" required>
+                    </div>
+
+                    <button type="submit">Cadastrar Maquinário</button>
+                </form>
+            </section>
+
+            <section class="card">
+                <h2>Registrar Ciclo de Plantio</h2>
+                <form id="form-plantio">
+                    <div class="form-group">
+                        <label for="cultura">Cultura (Plantação)</label>
+                        <input type="text" id="cultura" placeholder="Ex: Milho, Soja, Trigo" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dataPlantio">Data do Plantio</label>
+                        <input type="date" id="dataPlantio" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="previsaoColheita">Previsão da Colheita</label>
+                        <input type="date" id="previsaoColheita" required>
+                    </div>
+
+                    <button type="submit">Registrar Plantio</button>
+                </form>
+            </section>
+        </aside>
+
+        <main>
+            <section class="card">
+                <h2>Frota Registrada e Manutenção</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Modelo</th>
+                            <th>Tipo</th>
+                            <th>Horas</th>
+                            <th>Manutenção</th>
+                            <th>Status</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-maquinarios"></tbody>
+                </table>
+            </section>
+
+            <section class="card">
+                <h2>Monitoramento de Ciclos Agrícolas</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cultura</th>
+                            <th>Data Plantio</th>
+                            <th>Previsão Colheita</th>
+                            <th>Tempo Restante</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-plantios"></tbody>
+                </table>
+            </section>
+        </main>
+    </div>
+
+    <script>
+      // Controle do Tema Escuro Animado
+        function carregarTema() {
+            const temaSalvo = localStorage.getItem('agro_tema');
+            const checkbox = document.getElementById('checkbox-tema');
+            if (temaSalvo === 'escuro') {
+                document.body.classList.add('dark-theme');
+                checkbox.checked = true;
+            }
+        }
+
+        function alternarTema() {
+            const checkbox = document.getElementById('checkbox-tema');
+            if (checkbox.checked) {
+                document.body.classList.add('dark-theme');
+                localStorage.setItem('agro_tema', 'escuro');
+            } else {
+                document.body.classList.remove('dark-theme');
+                localStorage.setItem('agro_tema', 'claro');
+            }
+        }
+
+        // Lógica do Sistema AgroManager
+        const API_MAQUINARIOS = 'http://localhost:8080/api/maquinarios';
+        const API_PLANTIOS = 'http://localhost:8080/api/plantios';
+        let backendOnline = false;
+
+        function inicializarDadosLocal() {
+            if (!localStorage.getItem('agro_maquinarios')) {
+                const exemploMaq = [
+                    { id: 1, modelo: 'John Deere 6135M', tipo: 'Trator', horasUso: 1450, proximaManutencao: '2026-11-15' },
+                    { id: 2, modelo: 'Case IH Axial-Flow 5130', tipo: 'Colheitadeira', horasUso: 820, proximaManutencao: '2027-02-10' }
+                ];
+                localStorage.setItem('agro_maquinarios', JSON.stringify(exemploMaq));
+            }
+            if (!localStorage.getItem('agro_plantios')) {
+                const exemploPlan = [
+                    { id: 1, cultura: 'Soja Intacta', dataPlantio: '2026-10-15', previsaoColheita: '2027-02-20' }
+                ];
+                localStorage.setItem('agro_plantios', JSON.stringify(exemploPlan));
+            }
+        }
+
+        document.getElementById('form-maquinario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const novoMaquinario = {
+                modelo: document.getElementById('modelo').value,
+                tipo: document.getElementById('tipo').value,
+                horasUso: parseInt(document.getElementById('horasUso').value),
+                proximaManutencao: document.getElementById('proximaManutencao').value
+            };
+
+            try {
+                const res = await fetch(API_MAQUINARIOS, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(novoMaquinario)
+                });
+                if (!res.ok) throw new Error('Falha na API');
+            } catch (err) {
+                novoMaquinario.id = Date.now();
+                const lista = JSON.parse(localStorage.getItem('agro_maquinarios') || '[]');
+                lista.push(novoMaquinario);
+                localStorage.setItem('agro_maquinarios', JSON.stringify(lista));
+            }
+
+            document.getElementById('form-maquinario').reset();
+            carregarMaquinarios();
+        });
+
+        document.getElementById('form-plantio').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const novoPlantio = {
+                cultura: document.getElementById('cultura').value,
+                dataPlantio: document.getElementById('dataPlantio').value,
+                previsaoColheita: document.getElementById('previsaoColheita').value
+            };
+
+            try {
+                const res = await fetch(API_PLANTIOS, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(novoPlantio)
+                });
+                if (!res.ok) throw new Error('Falha na API');
+            } catch (err) {
+                novoPlantio.id = Date.now();
+                const lista = JSON.parse(localStorage.getItem('agro_plantios') || '[]');
+                lista.push(novoPlantio);
+                localStorage.setItem('agro_plantios', JSON.stringify(lista));
+            }
+
+            document.getElementById('form-plantio').reset();
+            carregarPlantios();
+        });
+
+        async function carregarMaquinarios() {
+            const statusDiv = document.getElementById('status-conexao');
+            let dados = [];
+
+            try {
+                const res = await fetch(API_MAQUINARIOS);
+                if (!res.ok) throw new Error('Offline');
+                dados = await res.json();
+                backendOnline = true;
+                statusDiv.innerHTML = '🟢 Conectado ao Backend Java (Spring Boot)';
+            } catch (err) {
+                backendOnline = false;
+                statusDiv.innerHTML = '🟡 Modo Navegador Ativo (Salvando localmente)';
+                dados = JSON.parse(localStorage.getItem('agro_maquinarios') || '[]');
+            }
+
+            const tbody = document.getElementById('tabela-maquinarios');
+            tbody.innerHTML = '';
+
+            dados.forEach(m => {
+                const precisaManutencao = m.alertaManutencao !== undefined 
+                    ? m.alertaManutencao 
+                    : verificarAlertaLocal(m.proximaManutencao);
+
+                const statusClass = precisaManutencao ? 'status-alerta' : 'status-ok';
+                const statusText = precisaManutencao ? 'Manutenção Pendente' : 'Em Dia';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${m.modelo}</strong></td>
+                        <td>${m.tipo}</td>
+                        <td>${m.horasUso}h</td>
+                        <td>${formatarData(m.proximaManutencao)}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td><button class="btn-excluir" onclick="removerMaquinario(${m.id})">Excluir</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function carregarPlantios() {
+            let dados = [];
+
+            try {
+                const res = await fetch(API_PLANTIOS);
+                if (!res.ok) throw new Error('Offline');
+                dados = await res.json();
+            } catch (err) {
+                dados = JSON.parse(localStorage.getItem('agro_plantios') || '[]');
+            }
+
+            const tbody = document.getElementById('tabela-plantios');
+            tbody.innerHTML = '';
+
+            dados.forEach(p => {
+                const diasRestantes = calcularDiasRestantes(p.previsaoColheita);
+                const textoTempo = diasRestantes === 0 ? 'Pronto para colheita!' : `${diasRestantes} dias`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${p.cultura}</strong></td>
+                        <td>${formatarData(p.dataPlantio)}</td>
+                        <td>${formatarData(p.previsaoColheita)}</td>
+                        <td>${textoTempo}</td>
+                        <td><button class="btn-excluir" onclick="removerPlantio(${p.id})">Excluir</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function removerMaquinario(id) {
+            if (backendOnline) {
+                await fetch(`${API_MAQUINARIOS}/${id}`, { method: 'DELETE' });
+            } else {
+                let lista = JSON.parse(localStorage.getItem('agro_maquinarios') || '[]');
+                lista = lista.filter(item => item.id !== id);
+                localStorage.setItem('agro_maquinarios', JSON.stringify(lista));
+            }
+            carregarMaquinarios();
+        }
+
+        async function removerPlantio(id) {
+            if (backendOnline) {
+                await fetch(`${API_PLANTIOS}/${id}`, { method: 'DELETE' });
+            } else {
+                let lista = JSON.parse(localStorage.getItem('agro_plantios') || '[]');
+                lista = lista.filter(item => item.id !== id);
+                localStorage.setItem('agro_plantios', JSON.stringify(lista));
+            }
+            carregarPlantios();
+        }
+
+        function verificarAlertaLocal(dataIso) {
+            if (!dataIso) return false;
+            const hoje = new Date();
+            const limite = new Date();
+            limite.setDate(hoje.getDate() + 7);
+            const dataManutencao = new Date(dataIso + 'T00:00:00');
+            return dataManutencao <= limite;
+        }
+
+        function formatarData(dataIso) {
+            if (!dataIso) return '-';
+            const [ano, mes, dia] = dataIso.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        function calcularDiasRestantes(dataFuturaIso) {
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const futura = new Date(dataFuturaIso + 'T00:00:00');
+            const diffTime = futura - hoje;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays > 0 ? diffDays : 0;
+        }
+
+        carregarTema();
+        inicializarDadosLocal();
+        carregarMaquinarios();
+        carregarPlantios();
+    </script>
+</body>
+</html>
