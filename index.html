@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgroManager - Sistema de Gestão Agrícola</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<header>
+    <header>
         <h1>🌾 AgroManager - Painel de Monitoramento</h1>
         <div id="status-conexao" class="status-servidor">Verificando servidor Java...</div>
-        
+
         <!-- Novo Botão Animado -->
         <div class="theme-switch-wrapper">
             <label class="theme-switch" for="checkbox-tema" title="Alternar Tema">
@@ -116,7 +118,7 @@
     </div>
 
     <script>
-      // Controle do Tema Escuro Animado
+        // Controle do Tema Escuro Animado
         function carregarTema() {
             const temaSalvo = localStorage.getItem('agro_tema');
             const checkbox = document.getElementById('checkbox-tema');
@@ -231,8 +233,8 @@
             tbody.innerHTML = '';
 
             dados.forEach(m => {
-                const precisaManutencao = m.alertaManutencao !== undefined 
-                    ? m.alertaManutencao 
+                const precisaManutencao = m.alertaManutencao !== undefined
+                    ? m.alertaManutencao
                     : verificarAlertaLocal(m.proximaManutencao);
 
                 const statusClass = precisaManutencao ? 'status-alerta' : 'status-ok';
@@ -333,4 +335,5 @@
         carregarPlantios();
     </script>
 </body>
+
 </html>
